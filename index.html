@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Corporação Umbrella - Fila de Atendimento</title>
+<style>
+  /* Cores da identidade Umbrella: vermelho, preto e branco */
+  :root {
+    --vermelho: #c8102e;
+    --preto: #0b0b0b;
+    --cinza: #1a1a1a;
+    --branco: #f2f2f2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: var(--preto);
+    color: var(--branco);
+  }
+  header {
+    background: var(--vermelho);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  header h1 {
+    font-size: 1.3rem;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  .logo { width: 48px; height: 48px; flex-shrink: 0; }
+  nav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px 24px;
+    background: var(--cinza);
+  }
+  button {
+    background: transparent;
+    color: var(--branco);
+    border: 1px solid var(--vermelho);
+    padding: 8px 16px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 0.85rem;
+  }
+  button:hover:not(:disabled), button.ativo { background: var(--vermelho); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-primario { background: var(--vermelho); }
+  main { padding: 24px; max-width: 1000px; margin: 0 auto; }
+  section { display: none; }
+  section.ativa { display: block; }
+  .card {
+    background: var(--cinza);
+    border-left: 4px solid var(--vermelho);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  label { display: block; margin: 12px 0 4px; font-size: 0.9rem; }
+  input, select {
+    width: 100%;
+    padding: 10px;
+    background: #000;
+    color: var(--branco);
+    border: 1px solid #333;
+  }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .check input { width: auto; }
+  .senha-atual {
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: var(--vermelho);
+    font-family: "Courier New", monospace;
+  }
+  .muted { color: #999; font-size: 0.85rem; }
+  .acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .msg { margin-top: 12px; min-height: 1.2em; color: #ffb3b3; }
+  .sucesso { color: #b8f5c4; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 12px; }
+  th, td { padding: 8px; border-bottom: 1px solid #333; text-align: left; }
+  .tag { background: #333; padding: 2px 6px; font-size: 0.75rem; }
+  .tag.pref { background: var(--vermelho); }
+  h2 { text-transform: uppercase; letter-spacing: 2px; font-size: 1.1rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <!-- Símbolo Umbrella em SVG -->
+  <svg class="logo" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="48" fill="#ffffff"/>
+    <path d="M50 18 C25 18 14 38 14 46 H86 C86 38 75 18 50 18 Z" fill="#c8102e"/>
+    <rect x="47" y="46" width="6" height="34" rx="3" fill="#c8102e"/>
+    <path d="M50 80 a6 6 0 0 1 -12 0" fill="none" stroke="#c8102e" stroke-width="5"/>
+  </svg>
+  <h1>Corporação Umbrella · Fila de Atendimento</h1>
+</header>
+
+<nav>
+  <button class="ativo" data-view="recepcao">Recepção</button>
+  <button data-view="painel">Painel</button>
+</nav>
+
+<main>
+
+  <!-- VISÃO DA RECEPÇÃO: cadastra o paciente, chama, finaliza e marca faltas -->
+  <section id="recepcao" class="ativa">
+    <h2>Recepção</h2>
+    <div class="card">
+      <h3 style="margin-top:0">Novo atendimento</h3>
+      <form id="form-senha">
+        <label for="nome">Nome do paciente</label>
+        <input type="text" id="nome" placeholder="Digite o nome completo" required>
+
+        <label for="especialidade">Especialidade / exame</label>
+        <select id="especialidade"></select>
+
+        <label for="pagamento">Forma de pagamento</label>
+        <select id="pagamento" required>
+          <option value="">Selecione</option>
+          <option value="Dinheiro">Dinheiro</option>
+          <option value="Cartão">Cartão</option>
+          <option value="Pix">Pix</option>
+          <option value="Convênio">Convênio</option>
+        </select>
+
+        <div class="check">
+          <input type="checkbox" id="prioritario">
+          <label for="prioritario" style="margin:0">Atendimento preferencial (idoso, gestante, PcD)</label>
+        </div>
+
+        <div class="acoes">
+          <button type="submit" class="btn-primario">Registrar e gerar senha</button>
+        </div>
+      </form>
+      <div id="resultado-senha" class="msg"></div>
+    </div>
+    <div class="card">
+      <label for="guiche">Número do guichê</label>
+      <input type="number" id="guiche" value="1" min="1" style="max-width:120px">
+    </div>
+    <div id="grid-recepcao" class="grid"></div>
+    <div class="acoes">
+      <button id="btn-resetar">Zerar todas as filas</button>
+    </div>
+  </section>
+
+  <!-- VISÃO DO PAINEL: o que aparece na TV da sala de espera -->
+  <section id="painel">
+    <h2>Painel de chamadas</h2>
+    <div id="grid-painel" class="grid"></div>
+    <div class="card" style="margin-top:24px">
+      <h3 style="margin-top:0">Últimas chamadas</h3>
+      <table>
+        <thead>
+          <tr><th>Senha</th><th>Paciente</th><th>Especialidade</th><th>Guichê</th><th>Hora</th></tr>
+        </thead>
+        <tbody id="historico"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // ===== CONFIGURAÇÃO =====
+  const ESPECIALIDADES = [
+    "Cardiologia", "Dermatologia", "Fisioterapia", "Fonoaudiologia",
+    "Ginecologia", "Odontopediatria", "Pediatria", "Psicologia", "Psiquiatria"
+  ];
+  const CHAVE = "umbrella_fila_v1";
+  // Regra de prioridade: a cada 3 preferenciais chamadas, uma senha normal é chamada
+  const LIMITE_PREFERENCIAIS_SEGUIDAS = 3;
+
+  // ===== ESTADO =====
+  let estado = carregar();
+
+  function estadoInicial() {
+    const e = { contador: {}, filas: {}, atual: {}, prefSeguidas: {}, historico: [] };
+    ESPECIALIDADES.forEach(esp => {
+      e.contador[esp] = 0;
+      e.filas[esp] = [];
+      e.atual[esp] = null;
+      e.prefSeguidas[esp] = 0;
+    });
+    return e;
+  }
+
+  function carregar() {
+    try {
+      const salvo = JSON.parse(localStorage.getItem(CHAVE));
+      if (salvo && salvo.filas) return salvo;
+    } catch (erro) { /* dados corrompidos: começa do zero */ }
+    return estadoInicial();
+  }
+
+  function salvar() {
+    try {
+      localStorage.setItem(CHAVE, JSON.stringify(estado));
+    } catch (erro) {
+      console.error("Não foi possível salvar a fila:", erro);
+    }
+  }
+
+  // Evita que nome digitado pelo paciente execute código ao ser exibido
+  function esc(texto) {
+    return String(texto).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  // ===== REGRAS DA FILA =====
+
+  // Paciente: gera a senha e coloca no fim da fila da especialidade
+  function gerarSenha(esp, nome, prioritario, pagamento) {
+    estado.contador[esp] += 1;
+    const prefixo = prioritario ? "P" : "N";
+    const numero = prefixo + String(estado.contador[esp]).padStart(3, "0");
+    const senha = { numero, nome, prioritario, pagamento, emitidaEm: Date.now(), status: "aguardando" };
+    estado.filas[esp].push(senha);
+    salvar();
+    return senha;
+  }
+
+  // Recepção: chama a próxima senha respeitando a prioridade
+  function chamarProximo(esp, guiche) {
+    // Não chama outro paciente enquanto o atual não for finalizado ou marcado como faltou
+    if (estado.atual[esp]) return null;
+
+    const fila = estado.filas[esp];
+    if (fila.length === 0) return null;
+
+    const temPref = fila.some(s => s.prioritario);
+    const temNormal = fila.some(s => !s.prioritario);
+    const chamarPreferencial =
+      temPref && (estado.prefSeguidas[esp] < LIMITE_PREFERENCIAIS_SEGUIDAS || !temNormal);
+
+    const idx = fila.findIndex(s => s.prioritario === chamarPreferencial);
+    const senha = fila.splice(idx, 1)[0];
+
+    estado.prefSeguidas[esp] = chamarPreferencial ? estado.prefSeguidas[esp] + 1 : 0;
+
+    senha.status = "chamada";
+    senha.guiche = guiche;
+    senha.chamadaEm = Date.now();
+    estado.atual[esp] = senha;
+
+    estado.historico.unshift({
+      numero: senha.numero, nome: senha.nome, esp, guiche, hora: senha.chamadaEm
+    });
+    estado.historico = estado.historico.slice(0, 10);
+
+    salvar();
+    return senha;
+  }
+
+  // Recepção: atendimento concluído
+  function finalizarAtual(esp) {
+    const senha = estado.atual[esp];
+    if (!senha) return;
+    senha.status = "finalizada";
+    estado.atual[esp] = null;
+    salvar();
+  }
+
+  // Recepção: paciente não apareceu quando chamado
+  function naoCompareceu(esp) {
+    const senha = estado.atual[esp];
+    if (!senha) return;
+    senha.status = "nao_compareceu";
+    estado.atual[esp] = null;
+    salvar();
+  }
+
+  // ===== RENDERIZAÇÃO =====
+  function preencherEspecialidades() {
+    const select = document.getElementById("especialidade");
+    select.innerHTML = ESPECIALIDADES.map(e => `<option value="${esc(e)}">${esc(e)}</option>`).join("");
+  }
+
+  function renderRecepcao() {
+    document.getElementById("grid-recepcao").innerHTML = ESPECIALIDADES.map(esp => {
+      const atual = estado.atual[esp];
+      const aguardando = estado.filas[esp].length;
+      return `
+        <div class="card">
+          <h3 style="margin-top:0">${esc(esp)}</h3>
+          <div class="senha-atual" style="font-size:1.6rem">${atual ? esc(atual.numero) : "—"}</div>
+          <p class="muted">${atual ? "Guichê " + esc(atual.guiche) + " · " + esc(atual.nome) : "Nenhum atendimento em andamento"}</p>
+          <p class="muted">Aguardando: ${aguardando}</p>
+          <div class="acoes">
+            <button class="btn-primario" data-acao="chamar" data-esp="${esc(esp)}" ${atual ? "disabled" : ""}>Chamar próximo</button>
+            <button data-acao="finalizar" data-esp="${esc(esp)}" ${atual ? "" : "disabled"}>Finalizar</button>
+            <button data-acao="faltou" data-esp="${esc(esp)}" ${atual ? "" : "disabled"}>Não compareceu</button>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  function renderPainel() {
+    document.getElementById("grid-painel").innerHTML = ESPECIALIDADES.map(esp => {
+      const atual = estado.atual[esp];
+      return `
+        <div class="card">
+          <h3 style="margin-top:0">${esc(esp)}</h3>
+          <div class="senha-atual">${atual ? esc(atual.numero) : "—"}</div>
+          <p class="muted">${atual ? "Dirija-se ao guichê " + esc(atual.guiche) : "Aguarde"}</p>
+          <p class="muted">Na fila: ${estado.filas[esp].length}</p>
+        </div>`;
+    }).join("");
+
+    document.getElementById("historico").innerHTML = estado.historico.length
+      ? estado.historico.map(h => `
+          <tr>
+            <td>${esc(h.numero)}</td>
+            <td>${esc(h.nome)}</td>
+            <td>${esc(h.esp)}</td>
+            <td>${esc(h.guiche)}</td>
+            <td>${new Date(h.hora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</td>
+          </tr>`).join("")
+      : `<tr><td colspan="5" class="muted">Nenhuma chamada ainda</td></tr>`;
+  }
+
+  function renderTudo() {
+    renderRecepcao();
+    renderPainel();
+  }
+
+  // ===== EVENTOS =====
+
+  // Navegação entre as visões
+  document.querySelectorAll("nav button").forEach(botao => {
+    botao.addEventListener("click", () => {
+      document.querySelectorAll("nav button").forEach(b => b.classList.remove("ativo"));
+      document.querySelectorAll("section").forEach(s => s.classList.remove("ativa"));
+      botao.classList.add("ativo");
+      document.getElementById(botao.dataset.view).classList.add("ativa");
+    });
+  });
+
+  // Paciente retira a senha
+  document.getElementById("form-senha").addEventListener("submit", e => {
+    e.preventDefault();
+    const msg = document.getElementById("resultado-senha");
+    const nome = document.getElementById("nome").value.trim();
+    const esp = document.getElementById("especialidade").value;
+    const prioritario = document.getElementById("prioritario").checked;
+    const pagamento = document.getElementById("pagamento").value;
+
+    if (!nome) {
+      msg.className = "msg";
+      msg.textContent = "Informe o nome do paciente.";
+      return;
+    }
+    if (!pagamento) {
+      msg.className = "msg";
+      msg.textContent = "Selecione a forma de pagamento.";
+      return;
+    }
+
+    const senha = gerarSenha(esp, nome, prioritario, pagamento);
+    const posicao = estado.filas[esp].length;
+    msg.className = "msg sucesso";
+    msg.innerHTML = `Sua senha: <strong>${esc(senha.numero)}</strong> · ${esc(esp)} · ` +
+                    `Posição na fila: ${posicao}. Aguarde ser chamado no painel.`;
+
+    e.target.reset();
+    renderTudo();
+  });
+
+  // Recepção: botões de chamar, finalizar e não compareceu (delegação de eventos)
+  document.addEventListener("click", e => {
+    const botao = e.target.closest("[data-acao]");
+    if (!botao) return;
+
+    const esp = botao.dataset.esp;
+    const guiche = Number(document.getElementById("guiche").value) || 1;
+
+    if (botao.dataset.acao === "chamar") {
+      if (estado.atual[esp]) {
+        alert("Finalize o atendimento atual ou marque 'Não compareceu' antes de chamar o próximo.");
+      } else {
+        const senha = chamarProximo(esp, guiche);
+        if (!senha) alert("Não há pacientes aguardando em " + esp + ".");
+      }
+    }
+    if (botao.dataset.acao === "finalizar") finalizarAtual(esp);
+    if (botao.dataset.acao === "faltou") naoCompareceu(esp);
+
+    renderTudo();
+  });
+
+  // Zerar tudo (útil para testes)
+  document.getElementById("btn-resetar").addEventListener("click", () => {
+    if (!confirm("Apagar todas as filas e o histórico?")) return;
+    estado = estadoInicial();
+    salvar();
+    renderTudo();
+  });
+
+  // Sincroniza painel e recepção quando há outra aba aberta no mesmo navegador
+  window.addEventListener("storage", e => {
+    if (e.key === CHAVE) {
+      estado = carregar();
+      renderTudo();
+    }
+  });
+  setInterval(() => {
+    estado = carregar();
+    renderTudo();
+  }, 2000);
+
+  // ===== INÍCIO =====
+  preencherEspecialidades();
+  renderTudo();
+</script>
+</body>
+</html>
